@@ -128,7 +128,7 @@ flowchart LR
 - Google OAuth credentials: Drive, Gmail, YouTube
 
 ### Steps
-1. Import the workflows from `/workflows` in order: Part 4, Part 3, Part 2, Part 1.
+1. Import the workflows from `workflows/` in order: Part 4, Part 3, Part 2, Part 1.
 2. Create credentials in n8n for each service above.
 3. Create a Header Auth credential and attach it to each webhook and to the HTTP nodes that call them.
 4. Set the webhook URLs:
@@ -142,16 +142,16 @@ flowchart LR
 
 ## Repository structure
 
-```
+```text
 .
-├── README.md
-├── workflows/
-│   ├── part1-producer-agent.json
-│   ├── part2-render-engine.json
-│   ├── part3-assemble-publish.json
-│   └── part4-error-handler.json
+├── README.md                        # Project documentation and architecture guide
+├── workflows/                       # Exported n8n workflow JSON pipelines
+│   ├── part1-producer-agent.json    # Part 1: Conversational planning agent
+│   ├── part2-render-engine.json     # Part 2: Narration, image & video clip generator
+│   ├── part3-assemble-publish.json  # Part 3: Clip stitching, QA review & YouTube upload
+│   └── part4-error-handler.json     # Part 4: Centralized failure handler & email alert
 └── docs/
-    └── images/
+    └── images/                      # Workflow screenshots and visual assets
         ├── part1-producer-agent.png
         ├── part2-render-engine.png
         ├── part3-assemble-publish.png
