@@ -173,12 +173,14 @@ flowchart LR
 
 ## Background
 
-This project started from a workflow demonstrated in a live automation course. I rebuilt and extended it with a conversational planning agent, ElevenLabs narration, a per-scene render loop with polling and failure handling, an AI QA gate, and a dedicated error-handling workflow.
+This project was born out of a real-world creator bottleneck: automating the short-form video pipeline for a friend's YouTube channel. Producing consistent, high-retention shorts manually—brainstorming, scripting, generating voiceovers, animating individual visual scenes, editing audio/video tracks, and publishing—required hours of repetitive manual effort per video.
+
+To solve this, I designed and engineered an end-to-end multi-agent automation architecture that turns rough conversational concepts into fully produced, QA-vetted YouTube Shorts. By decoupling planning, media generation, video assembly, and failure recovery into isolated, event-driven workflows with strict schema validation, the system eliminates production toil while maintaining high creative fidelity and operational resilience.
 
 ---
 
 ## Author
 
-**Ajhar**
-Agentic AI Engineer | AI Automation (n8n, RAG, MCP) | Java/Spring Boot + Python/FastAPI
-[LinkedIn: add link] · [GitHub: add link]
+**Ajhar**  
+Agentic AI Engineer | AI Automation (n8n, RAG, MCP) | Java/Spring Boot + Python/FastAPI  
+[LinkedIn Profile](https://www.linkedin.com/in/ajharul-akanda/)
