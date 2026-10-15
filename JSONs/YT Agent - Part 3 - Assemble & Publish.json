@@ -1,0 +1,709 @@
+{
+  "name": "YT Agent - Part 3 - Assemble & Publish",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "PART 3 - Assemble & Publish\nWebhook receives clip URLs + narration URL -> fal.ai merge-videos (poll loop) -> fal.ai merge-audio-video (poll loop) -> QA Agent reviews title/description/tags/narration and approves or rejects -> upload to YouTube as PRIVATE -> email.\nSetup: your email in the Gmail node.",
+        "height": 240,
+        "width": 900,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "id": "0eee2b8a-4213-4d9f-9445-7959aa3638da",
+      "name": "Note: PART 3 - Assemble & Publish"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "yt-publish",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        576
+      ],
+      "id": "6130821d-9c57-4866-9b24-78606fdbe9f5",
+      "name": "Webhook",
+      "webhookId": "f906242b-710a-4dc9-8911-8cea51af334f",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eM0vxGXnVnwRxVhX",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body;\nif (!b || !Array.isArray(b.video_urls) || !b.video_urls.length || !b.audio_url) {\n  throw new Error('Invalid payload: ' + JSON.stringify(b).slice(0, 500));\n}\nreturn [{ json: b }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        576
+      ],
+      "id": "7badbcd8-68da-4b5e-89fd-7bab2824615d",
+      "name": "Prep"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_urls: $json.video_urls }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        560,
+        576
+      ],
+      "id": "d1f03cc6-d3e5-4f24-a9da-b8a76248d585",
+      "name": "Submit video merge",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F49KULJZNsKbixf0",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        784,
+        576
+      ],
+      "id": "e0709ce1-80a8-4b14-80d6-34469f412531",
+      "name": "Wait (video merge)",
+      "webhookId": "c421235e-8ecf-4bf4-82fa-255659b775ea"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Submit video merge').first().json.status_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1008,
+        576
+      ],
+      "id": "3262f9a3-9949-4cd0-8cf7-72248443c385",
+      "name": "Check video merge",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kNpCY6pgQ3jInO60",
+          "name": "Luma AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b3582e00-5673-4747-a065-ca6dab4239d6",
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "COMPLETED"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        576
+      ],
+      "id": "5ea41ccc-248e-4c12-b982-3b638dcd5fef",
+      "name": "Video merge done?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Submit video merge').first().json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1456,
+        576
+      ],
+      "id": "cb4f6163-7c41-47e5-bea8-4a60e5e2aec0",
+      "name": "Get merged video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kNpCY6pgQ3jInO60",
+          "name": "Luma AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-audio-video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ video_url: $json.video.url, audio_url: $('Prep').first().json.audio_url }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1680,
+        576
+      ],
+      "id": "7d10f564-0e1e-47ce-a4bf-b8791feff9fc",
+      "name": "Submit audio merge",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F49KULJZNsKbixf0",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1904,
+        576
+      ],
+      "id": "fdf94947-7303-4dff-be15-a640d26e4e56",
+      "name": "Wait (audio merge)",
+      "webhookId": "6d3df882-f31d-4f56-b0aa-ff212b949a49"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Submit audio merge').first().json.status_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2128,
+        576
+      ],
+      "id": "96b202fd-5b1f-49c4-8c61-a6e206a9d3a4",
+      "name": "Check audio merge",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kNpCY6pgQ3jInO60",
+          "name": "Luma AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2e84b67e-102d-4041-8959-3f28c86ef075",
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "COMPLETED"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2352,
+        576
+      ],
+      "id": "b69637d3-fd9b-4243-880f-6be27696b546",
+      "name": "Audio merge done?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Submit audio merge').first().json.response_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2576,
+        576
+      ],
+      "id": "1100d7fa-70f0-49f6-b493-26967dd491fd",
+      "name": "Get final video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F49KULJZNsKbixf0",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ title: $('Prep').first().json.title, description: $('Prep').first().json.description, tags: $('Prep').first().json.tags, voiceover: $('Prep').first().json.voiceover }) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a YouTube quality and policy reviewer. You receive JSON with title, description, tags and the voiceover script of a short AI-generated video.\nCheck: (1) policy risks: hate, harassment, dangerous or sexual content, misleading or unverifiable factual claims; (2) the title does not promise something the script does not deliver; (3) limits: title max 60 characters, description max 150 characters, 5-8 tags.\nIf acceptable, approved=true and return a lightly polished title, description and tags (keep meaning). If not acceptable, approved=false and explain in notes. Always fill title, description and tags."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        576
+      ],
+      "id": "1d050634-fedd-4dda-80df-fa5f807b8644",
+      "name": "QA Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2736,
+        816
+      ],
+      "id": "626f8652-5187-4012-84d9-a6b45ac3a6f7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"approved\": true,\n  \"title\": \"\",\n  \"description\": \"\",\n  \"tags\": [\n    \"tag1\"\n  ],\n  \"notes\": \"\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2880,
+        800
+      ],
+      "id": "68a029a3-2800-4af4-8827-d952800b946d",
+      "name": "QA Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b75ba7af-a8cb-4fe9-a05c-e8b01e44f5ce",
+              "leftValue": "={{ $json.output.approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3024,
+        576
+      ],
+      "id": "5cdfca1d-83f1-4305-a1dc-f271e6436815",
+      "name": "QA approved?"
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'QA Agent rejected run ' + $('Prep').first().json.run_id + ': ' + $json.output.notes }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3248,
+        720
+      ],
+      "id": "70379afa-1470-47be-ba7e-e3304e7aa506",
+      "name": "Stop: QA rejected"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Get final video').first().json.video.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3248,
+        480
+      ],
+      "id": "2351739e-82e6-4a27-8c71-8326a132ce9a",
+      "name": "Download final video"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('QA Agent').first().json.output.title }}",
+        "regionCode": "BD",
+        "categoryId": "22",
+        "options": {
+          "defaultLanguage": "en",
+          "description": "={{ $('QA Agent').first().json.output.description }}",
+          "privacyStatus": "private",
+          "selfDeclaredMadeForKids": false,
+          "tags": "={{ $('QA Agent').first().json.output.tags.join(',') }}"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        3472,
+        480
+      ],
+      "id": "1f16cc65-6de5-49e9-8a50-c0cfd06d8c18",
+      "name": "Upload to YouTube",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "TUlhnZhPWB4NNbHD",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "={{ 'Video uploaded (private): ' + $('QA Agent').first().json.output.title }}",
+        "emailType": "text",
+        "message": "={{ 'Run ' + $('Prep').first().json.run_id + ' finished.\\nhttps://www.youtube.com/watch?v=' + $json.id + '\\n\\nRemember to review it in YouTube Studio (and set the AI-generated content disclosure) before making it public.' }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3696,
+        480
+      ],
+      "id": "85aa0574-b796-4cc8-82b5-bd9e32075d23",
+      "name": "Notify success",
+      "webhookId": "3ef76d16-7889-414c-8554-3afc6f4081fa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rcV2vTqOgqRm4P3S",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Submit video merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit video merge": {
+      "main": [
+        [
+          {
+            "node": "Wait (video merge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (video merge)": {
+      "main": [
+        [
+          {
+            "node": "Check video merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check video merge": {
+      "main": [
+        [
+          {
+            "node": "Video merge done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video merge done?": {
+      "main": [
+        [
+          {
+            "node": "Get merged video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait (video merge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get merged video": {
+      "main": [
+        [
+          {
+            "node": "Submit audio merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit audio merge": {
+      "main": [
+        [
+          {
+            "node": "Wait (audio merge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (audio merge)": {
+      "main": [
+        [
+          {
+            "node": "Check audio merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check audio merge": {
+      "main": [
+        [
+          {
+            "node": "Audio merge done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio merge done?": {
+      "main": [
+        [
+          {
+            "node": "Get final video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait (audio merge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get final video": {
+      "main": [
+        [
+          {
+            "node": "QA Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Agent": {
+      "main": [
+        [
+          {
+            "node": "QA approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA approved?": {
+      "main": [
+        [
+          {
+            "node": "Download final video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop: QA rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download final video": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Notify success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "QA Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "QA Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "kFuSYQpffo0I94ai",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5c4454b4-be37-4f8b-97e3-965f29993a83",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6bee9af988b17269968689e147e37e1a2656af11498d3a8392b3c7c06b2adcf8"
+  },
+  "nodeGroups": [],
+  "id": "pyx95JVqCoRTTjtD",
+  "tags": []
+}

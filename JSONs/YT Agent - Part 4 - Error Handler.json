@@ -1,0 +1,83 @@
+{
+  "name": "YT Agent - Part 4 - Error Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "PART 4 - Error Handler\nSet this workflow as the 'Error workflow' in Settings of Parts 1, 2 and 3. Any failed Kling clip, failed merge, QA rejection or API error lands here and emails you with a link to the failed execution.",
+        "height": 180,
+        "width": 620,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -32
+      ],
+      "id": "9da29eaa-7cbf-429b-9aaa-ec180579604c",
+      "name": "Note: PART 4 - Error Handler"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        240
+      ],
+      "id": "e5b255d1-5ffc-4285-b189-5b2a19c5186d",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "ajharsara1212@gmail.com",
+        "subject": "={{ 'n8n failure: ' + $json.workflow.name }}",
+        "emailType": "text",
+        "message": "={{ 'Workflow: ' + $json.workflow.name + '\\nFailed node: ' + $json.execution.lastNodeExecuted + '\\nError: ' + $json.execution.error.message + '\\nExecution: ' + $json.execution.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        240
+      ],
+      "id": "148efc00-44c0-4661-bad4-5523401a76d5",
+      "name": "Email the error",
+      "webhookId": "250fabbf-d9e1-4b42-9083-106d9b044e8a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rcV2vTqOgqRm4P3S",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Email the error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "41916135-2cc2-4bed-a686-999a141037f4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6bee9af988b17269968689e147e37e1a2656af11498d3a8392b3c7c06b2adcf8"
+  },
+  "nodeGroups": [],
+  "id": "kFuSYQpffo0I94ai",
+  "tags": []
+}

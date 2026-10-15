@@ -1,0 +1,306 @@
+{
+  "name": "YT Agent - Part 1 - Producer Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "PART 1 - Producer Agent\nChat trigger -> AI Agent (with memory) decides: ask a clarifying question OR produce a 6-scene plan (title, tags, narration, image + motion prompts). If ready, the plan is POSTed to Part 2 (webhook, secured with header auth).\nSetup: set the Part 2 URL in 'Send plan to Part 2'.",
+        "height": 200,
+        "width": 760,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "99bf7ded-0738-4118-90c5-2898d3806f41",
+      "name": "Note: PART 1 - Producer Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        352
+      ],
+      "id": "d2ad0b4b-edca-4f61-8e70-218946631d48",
+      "name": "Chat Trigger",
+      "webhookId": "8e28e0a0-20c8-48f9-bf53-73cb3331aec6"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a YouTube Producer Agent. The user chats with you to request a short video (about 30 seconds, face-less, 6 scenes).\n\nDECISION RULE\n- If the topic is clear enough to make a video, set ready=true and fill the plan.\n- If it is vague (e.g. one unclear word, no angle), set ready=false, ask ONE short clarifying question in 'reply', and leave plan fields empty (scenes: []).\n- Refuse unsafe topics (hate, harassment, dangerous or sexual content, medical/financial claims presented as fact): ready=false and explain briefly.\n\nPLAN RULES\n- Exactly 6 scenes, index 0 to 5. Each scene = one 5-second clip.\n- narration: 11-14 words per scene, spoken in natural voiceover style, whole script max 80 words. Scene 0 is a hook, scene 5 ends with a short call to action.\n- title: 30-50 characters, curiosity-driven, honest (no false promises).\n- description: 50-150 characters, with a hook and 2-3 hashtags.\n- tags: 5-8 short tags.\n- image_prompt: one simple concrete scene (single subject, landscape, object, lighting). No text, no readable signs, no logos, no hands, no multiple interacting people. Match the mood of the narration, not the literal words.\n- motion_prompt: one short camera or subject motion for the image (e.g. 'slow push-in, gentle wind in the trees').\n- reply: one friendly sentence telling the user what you are making (or your question).\n\nReply in the same language the user writes in for 'reply'; narration language follows the user's request (default English)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        352
+      ],
+      "id": "d05c293f-2c8c-43ab-bc3e-ed243c689d46",
+      "name": "Producer Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        624
+      ],
+      "id": "574b12bd-af5b-47fb-aafd-041eb90ba92f",
+      "name": "Chat Memory"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"ready\": true,\n  \"reply\": \"short message to the user\",\n  \"plan\": {\n    \"title\": \"\",\n    \"description\": \"\",\n    \"tags\": [\n      \"tag1\"\n    ],\n    \"scenes\": [\n      {\n        \"index\": 0,\n        \"narration\": \"\",\n        \"image_prompt\": \"\",\n        \"motion_prompt\": \"\"\n      }\n    ]\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        576
+      ],
+      "id": "63f1a4b2-1c34-42b9-b57b-e2e9599393a9",
+      "name": "Plan Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3f5773b4-735c-427c-a6e3-e7579e1a4c27",
+              "leftValue": "={{ $json.output.ready }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        352
+      ],
+      "id": "3074ffe4-107d-4bee-b810-8e173c76d0d8",
+      "name": "Plan ready?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ajharsara2110.app.n8n.cloud/webhook-test/yt-render",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ run_id: $execution.id, plan: $json.output.plan }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        272
+      ],
+      "id": "99f69fc1-d7ba-4851-adff-220c956c19b5",
+      "name": "Send plan to Part 2",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eM0vxGXnVnwRxVhX",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9e3fa48d-5445-450e-bf5e-a72ec58cddef",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $('Producer Agent').first().json.output.reply }}\n\nProduction started. It takes around 10-15 minutes. You will get an email when the video is uploaded (as private)."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1136,
+        272
+      ],
+      "id": "ad995ca3-6ef0-49c5-9459-121d7cbcd80e",
+      "name": "Reply: started"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1fe453a3-2a4a-4bbb-8fa0-7a47615cf5bb",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $json.output.reply }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        464
+      ],
+      "id": "0b185d79-af97-4195-b707-61abe64634d5",
+      "name": "Reply: clarify"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        560
+      ],
+      "id": "24b6cd3e-45ab-40a6-b624-2be43e4ba5a0",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xwbHkM9jUdGxXDee",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Producer Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Producer Agent": {
+      "main": [
+        [
+          {
+            "node": "Plan ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan ready?": {
+      "main": [
+        [
+          {
+            "node": "Send plan to Part 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply: clarify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send plan to Part 2": {
+      "main": [
+        [
+          {
+            "node": "Reply: started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Producer Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Producer Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Producer Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "kFuSYQpffo0I94ai",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c0aebfca-6552-48bd-beb5-27b6e360a540",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6bee9af988b17269968689e147e37e1a2656af11498d3a8392b3c7c06b2adcf8"
+  },
+  "nodeGroups": [],
+  "id": "HYxaNiecvf70Bolo",
+  "tags": []
+}
